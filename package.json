@@ -9,13 +9,23 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@prisma/client": "^6.2.1",
+    "@prisma/extension-accelerate": "^1.2.1",
     "axios": "^1.7.9",
+    "bcrypt": "^5.1.1",
+    "bcryptjs": "^2.4.3",
     "next": "15.1.4",
+    "next-auth": "^5.0.0-beta.25",
+    "prisma": "^6.2.1",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@faker-js/faker": "^9.3.0",
+    "@types/bcrypt": "^5.0.2",
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",

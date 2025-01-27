@@ -1,0 +1,102 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = "postgresql://postgres:1234@localhost:5432/arco-asesores_v2?schema=public""
+}
+
+model Client {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(255)
+  lastname    String    @db.VarChar(255)
+  email       String    @unique @db.VarChar(255)
+  wa_id       String    @unique @db.VarChar(16)
+  manager     User      @relation(fields: [managerId], references: [id], onDelete: Cascade)
+  managerId   Int       @map("manager_id") // Foreign key explícita
+  status      Status    @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?  @updatedAt
+  createdBy   Int?      @map("created_by") // Foreign key opcional explícita
+  updatedBy   Int?      @map("updated_by") // Foreign key opcional explícita
+}
+
+model User {
+  id          Int       @id @default(autoincrement())
+  name        String    @db.VarChar(80)
+  lastname    String?   @db.VarChar(80)
+  password    String?    @db.VarChar(80)
+  email       String    @unique @db.VarChar(80)
+  wa_id       String?    @unique @db.VarChar(16)
+  role        Role?      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId      Int?       @map("role_id") // Foreign key explícita
+  clients     Client[]
+  manager     User?     @relation("ManagerRelation", fields: [managerId], references: [id], onDelete: SetNull)
+  managerId   Int?      @map("manager_id") // Foreign key explícita
+  employees   User[]    @relation("ManagerRelation") // Relación inversa para managers
+  managedBy   UserRelationship[] @relation("EmployeeRelation") // Relación inversa para UserRelationship (empleados)
+  manages     UserRelationship[] @relation("ManagerRelation")  // Relación inversa para UserRelationship (managers)
+  status      Status    @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?  @updatedAt
+  createdBy   Int?      @map("created_by") // Foreign key opcional explícita
+  updatedBy   Int?      @map("updated_by") // Foreign key opcional explícita
+}
+
+model UserRelationship {
+  id          Int       @id @default(autoincrement())
+  employee    User      @relation("EmployeeRelation", fields: [employeeId], references: [id], onDelete: Cascade)
+  employeeId  Int       @map("employee_id") // Foreign key explícita
+  manager     User      @relation("ManagerRelation", fields: [managerId], references: [id], onDelete: Cascade)
+  managerId   Int       @map("manager_id") // Foreign key explícita
+
+  @@unique([employeeId, managerId]) // Índice único para evitar duplicados
+}
+
+model Permission {
+  id          Int       @id @default(autoincrement())
+  name        String    @unique
+  description String    @db.VarChar(255)
+  status      Status    @default(ACTIVE)
+  rolePermissions RolePermission[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime?  @updatedAt
+  createdBy   Int?      @map("created_by") // Foreign key opcional explícita
+  updatedBy   Int?      @map("updated_by") // Foreign key opcional explícita
+}
+
+model Role {
+  id          Int          @id @default(autoincrement())
+  name        String       @unique
+  users       User[]
+  permissions RolePermission[]
+  status      Status       @default(ACTIVE)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime?     @updatedAt
+  createdBy   Int?         @map("created_by") // Foreign key opcional explícita
+  updatedBy   Int?         @map("updated_by") // Foreign key opcional explícita
+}
+
+model RolePermission {
+  id           Int         @id @default(autoincrement())
+  role         Role        @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  roleId       Int         @map("role_id") // Foreign key explícita
+  permission   Permission  @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+  permissionId Int         @map("permission_id") // Foreign key explícita
+
+  @@unique([roleId, permissionId]) // Índice único para evitar duplicados
+}
+
+enum Status {
+  ACTIVE
+  INACTIVE
+  PENDING
+  DELETED
+}

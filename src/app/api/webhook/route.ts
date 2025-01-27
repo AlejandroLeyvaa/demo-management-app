@@ -1,5 +1,8 @@
 import { NextApiRequest, NextApiResponse } from "next";
 import axios from "axios";
+import { parse } from 'url';
+import { NextResponse } from "next/server";
+
 
 
 type ResponseData = {
@@ -10,26 +13,25 @@ let appointmentState: any = {};
 
 const { WEBHOOK_VERIFY_TOKEN, API_TOKEN, BUSINESS_PHONE, API_VERSION, PORT, BASE_URL } = process.env;
 
-export async function GET(
-    req: any,
-    res: any
-) {
+export async function GET(req: Request) {
     try {
+        const parsedUrl = parse(req.url, true); // Analiza la URL con query params
+        const queryParams = parsedUrl.query; // Obtén los query params como un objeto
 
-        console.log('WEBHOOK_VERIFY_TOKEN', WEBHOOK_VERIFY_TOKEN)
 
-        const mode = req.query["hub.mode"];
-        const token = req.query["hub.verify_token"];
-        const challenge: any = req.query["hub.challenge"];
+        const mode = queryParams["hub.mode"];
+        const token = queryParams["hub.verify_token"];
+        const challenge: any = queryParams["hub.challenge"];
+
+
 
         // check the mode and token sent are correct
         if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
             // respond with 200 OK and challenge token from the request
-            res.status(200).send(challenge);
-            console.log("Webhook verified successfully!");
+            return new Response(challenge);
         } else {
             // respond with '403 Forbidden' if verify tokens do not match
-            res.sendStatus(403);
+            return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 })
         }
 
     } catch (error) {
@@ -38,28 +40,29 @@ export async function GET(
 
 }
 
-export async function POST(req: any, res: any) {
+export async function POST(req: Request) {
+    const body = await req.json();
+    const message = body.entry?.[0]?.changes[0]?.value?.messages?.[0];
+    const senderInfo = body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
 
-    const message = req.body.entry?.[0]?.changes[0]?.value?.messages?.[0];
-    const senderInfo = req.body.entry?.[0]?.changes[0]?.value?.contacts?.[0];
 
 
     if (message) {
         await handleIncomingMessage(message, senderInfo);
     }
-    res.sendStatus(200);
+
+    
+    return Response.json({ success: true });
 }
 
 async function handleIncomingMessage(message: any, senderInfo: any) {
 
-    console.log('message', message);
     let fromNumber = '';
     if (message?.type === 'text') {
         const incomingMessage = message.text.body.toLowerCase().trim();
 
         fromNumber = message.from.slice(0, 2) + message.from.slice(3);
 
-        console.log(':::::::::::::::::::::::', { incomingMessage, fromNumber, message, senderInfo });
 
 
         // if (!findClient(fromNumber)) {
@@ -90,7 +93,6 @@ async function handleIncomingMessage(message: any, senderInfo: any) {
 
 function isGreeting(message: any) {
 
-    console.log('type', message?.type === 'text');
     if (typeof message === 'string') {
         return true;
     }
@@ -100,7 +102,6 @@ async function sendWelcomeMessage(to: any, messageId: any, senderInfo: any) {
     const name = getSenderName(senderInfo);
 
 
-    console.log("---------------------------- NAME", name, { to, messageId, senderInfo });
 
     const welcomeMessage = `Hola ${name}, Bienvenido a botwhatsapp.`;
     await sendMessage(to, welcomeMessage, messageId);
@@ -117,8 +118,6 @@ async function sendMessage(to: any, body: any, messageId: any) {
         text: { body },
     };
 
-    // console.log("TAG: CLASS WhatsAppService Method sendMessage");
-    // console.log(JSON.stringify(data));
 
 
     await sendToWhatsApp(data);
@@ -139,13 +138,10 @@ const sendToWhatsApp = async (data: any) => {
             data,
         }
 
-        //console.log("TAG: obj", JSON.stringify(obj));
         const response = await axios(obj)
 
-        //console.log("TAG: RESPONSE" + response.data);
         return response.data;
     } catch (error: any) {
-        console.log(error.response.data);
     }
 };
 
@@ -186,7 +182,6 @@ async function sendInteractiveButtons(to: any, bodyText: any, buttons: any) {
 async function handleMenuOption(to: any, option: any) {
     let response;
 
-    console.log('option', option);
 
     switch (option) {
         case 'signup':
@@ -209,7 +204,6 @@ async function handleMenuOption(to: any, option: any) {
             response = "Lo siento, no entendí tu selección, Por Favor, elige una de las opciones del menú."
     }
 
-    console.log({ to, response })
     await sendMessage(to, response, "");
 }
 
@@ -220,6 +214,5 @@ async function markAsRead(messageId: any) {
         message_id: messageId,
     };
 
-    console.log('mark as read');
     await sendToWhatsApp(data);
 }
